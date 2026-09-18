@@ -85,7 +85,7 @@ details{margin-top:10px}summary{cursor:pointer;color:var(--dim);font-size:13px}
 // scope: "all" | "inf" | "cav" | "arc" | ["inf","arc"]  (기본 all)
 // weapon.mode: "attack"(공성/집결 시작) | "defend"(수성) | "all"
 // status: "ok" 확인됨 / "todo" 아직 미입력
-// joiner:false → 집결원 후보에서 제외 (집결장 선택은 가능). 허용 목록: 하워드·파드·첸코·아마네·살로·힐데·페라·에릭·비비안·스루드·트리톤·아이바·웨이루·찰스·디에고
+// joiner:false → 집결원 후보에서 제외 (집결장 선택은 가능). 허용 목록: 하워드·파드·고든·첸코·아마네·살로·힐데·페라·에릭·비비안·스루드·트리톤·아이바·웨이루·찰스·디에고
 const HEROES = [
   // ---------- Gen 2 (Day 40) ----------
   { id:"zoe", joiner:false, ko:"조이", en:"Zoe", gen:2, type:"inf", rarity:"legendary", status:"ok",
@@ -167,7 +167,7 @@ const HEROES = [
       { name:"Defenders' Edge", ko:"수비수의 우위", effects:[{op:111,val:20}] },
       { name:"Weaken", ko:"약화", effects:[{op:202,val:20}] },
     ], weapon:null },
-  { id:"gordon", joiner:false, ko:"고든", en:"Gordon", gen:1, type:"cav", rarity:"epic", status:"ok",
+  { id:"gordon", ko:"고든", en:"Gordon", gen:1, type:"cav", rarity:"epic", status:"ok",
     skills:[
       { name:"Super Nutrients", ko:"슈퍼 영양식", effects:[{op:113,val:25}] },
       { name:"Trash Talk", ko:"입담", effects:[{op:102,val:25}] },
