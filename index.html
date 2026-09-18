@@ -78,6 +78,7 @@ details{margin-top:10px}summary{cursor:pointer;color:var(--dim);font-size:13px}
 // op 공격풀: 101 파괴력  102 공격력  103 피해증가  104 스킬피해증가  301 적받는피해증가  302 적방어감소  303 적체력감소
 // op 방어풀: 111 받는피해감소  112 방어력  113 체력  201 적피해감소  202 적공격력감소  203 적파괴력감소
 // chance: 발동 확률(%) — 없으면 항상 적용.  turns: 지속 턴(참고용)
+// unique: 집결장·집결원 통틀어 한 번만 적용되는 스킬 (중복 무시)
 // chancePerType: 병종마다 독립 판정되는 확률 → 실제 확률 = 1-(1-p)^(비율>0인 병종 수)
 // scope: "all" | "inf" | "cav" | "arc" | ["inf","arc"]  (기본 all)
 // weapon.mode: "attack"(공성/집결 시작) | "defend"(수성) | "all"
@@ -116,7 +117,7 @@ const HEROES = [
     weapon:{ name:"Vanguard", ko:"선봉", mode:"defend", effects:[{op:112,val:15}] } },
   { id:"petra", ko:"페트라", en:"Petra", gen:3, type:"cav", rarity:"legendary", status:"ok",
     skills:[
-      { name:"Evil Eye", ko:"사악한 눈", chancePerType:50, effects:[{op:301,val:50}] },   // 병종 1개 50% / 2개 75% / 3개 87.5% (병종별 독립 판정)
+      { name:"Evil Eye", ko:"사악한 눈", chancePerType:50, unique:true, effects:[{op:301,val:50}] },   // 집결 전체에서 1개만 적용   // 병종 1개 50% / 2개 75% / 3개 87.5% (병종별 독립 판정)
       { name:"The Favor", ko:"행운", chance:50, effects:[{op:102,val:50}] },
       { name:"The Shield", ko:"방패", chance:40, effects:[{op:111,val:50}] },
     ],
@@ -330,9 +331,9 @@ function skillEffects(skill){ // → [{op,val}]
   let chance = skill.chance;
   if(skill.chancePerType){ const n=["inf","arc","cav"].filter(t=>st.ratio[t]>0).length; chance = 100*(1-Math.pow(1-skill.chancePerType/100, n)); }
   const p = chance && st.prob==="ev" ? chance/100 : 1;
-  return skill.effects.map(e=>({op:e.op, val:e.val*p*scopeShare(e.scope||skill.scope)}));
+  return skill.effects.map(e=>({op:e.op, val:e.val*p*scopeShare(e.scope||skill.scope), uid: skill.unique ? skill.name : null}));
 }
-function sumIds(effs){ const m={}; effs.forEach(e=>{m[e.op]=(m[e.op]||0)+e.val;}); return m; }
+function sumIds(effs){ const m={}, seen=new Set(); effs.forEach(e=>{ if(e.uid){ if(seen.has(e.uid)) return; seen.add(e.uid); } m[e.op]=(m[e.op]||0)+e.val;}); return m; }
 function mult(ids, keys){ return keys.reduce((a,k)=>a*(1+(ids[k]||0)/100),1); }
 function leaderEffects(){ const out=[]; const list=[];
   for(const t of ["inf","arc","cav"]){ const h=byId[st.leaders[t]]; if(!h) continue;
