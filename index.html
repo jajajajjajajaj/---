@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>집결 영웅 밸런스 계산기</title>
+<style>
+:root{--bg:#0f1519;--panel:#171f26;--panel2:#1d2730;--line:#2a3742;--text:#e6ebef;--dim:#8a9aa8;--gold:#e0b458;--gold-t:#1a1300;--red:#e06c6c;--green:#5fc28f;--blue:#5fa8e0;--mono:"SF Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;font-size:15px}
+.wrap{max-width:900px;margin:0 auto;padding:20px 14px 80px}
+h1{font-size:22px;margin:0 0 2px}.sub{color:var(--dim);font-size:13px;margin-bottom:18px}
+h2{font-size:15px;letter-spacing:.04em;text-transform:uppercase;color:var(--gold);margin:22px 0 10px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.grid{display:grid;gap:10px}.g3{grid-template-columns:repeat(3,1fr)}.g2{grid-template-columns:repeat(2,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
+@media(max-width:640px){.g3,.g4{grid-template-columns:1fr 1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+label.l{display:block;font-size:12px;color:var(--dim);margin-bottom:4px}
+select,input{width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:8px 10px;font-size:15px;font-family:inherit}
+.seg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{flex:1;border:0;background:transparent;color:var(--dim);padding:8px;font-size:14px;cursor:pointer;font-family:inherit}
+.seg button.on{background:var(--gold);color:var(--gold-t);font-weight:600}
+.chk{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--dim);margin-top:6px;cursor:pointer}
+.chk input{width:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:6px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{color:var(--dim);font-weight:500;font-size:12px}
+td.n,th.n{text-align:right;font-family:var(--mono)}
+.bar{height:6px;background:var(--panel2);border-radius:3px;overflow:hidden;margin-top:3px}.bar i{display:block;height:100%;background:var(--gold)}
+.bar.d i{background:var(--blue)}
+.tag{display:inline-block;font-size:11px;padding:1px 6px;border-radius:4px;background:var(--panel2);color:var(--dim);margin-right:3px}
+.tag.o{color:var(--gold)}.tag.d{color:var(--blue)}.tag.warn{color:var(--red)}
+.big{font-size:26px;font-weight:700;font-family:var(--mono)}.big small{font-size:12px;color:var(--dim);font-family:inherit;font-weight:400}
+.kv{display:flex;justify-content:space-between;gap:8px;font-size:13px;padding:3px 0}.kv b{font-family:var(--mono);font-weight:600}
+.dim{color:var(--dim);font-size:13px}.warn{color:var(--red);font-size:13px}
+.rec{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer}.rec:hover{background:var(--panel2)}
+.rec .rk{font-family:var(--mono);color:var(--dim);width:22px}.rec .hs{flex:1}.rec .sc{font-family:var(--mono);font-weight:600;color:var(--gold)}
+.rec.sel{background:var(--panel2);outline:1px solid var(--gold)}
+.pill{display:inline-block;border:1px solid var(--line);border-radius:14px;padding:2px 9px;font-size:13px;margin:2px 3px 2px 0;background:var(--panel2)}
+.foot{margin-top:40px;text-align:center;color:var(--dim);font-size:12px;opacity:.7}
+details{margin-top:10px}summary{cursor:pointer;color:var(--dim);font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>집결 영웅 밸런스 계산기</h1>
+<div class="sub">집결장 영웅 3명(보·궁·기)을 고르면 스킬 ID별 합산과 집결원 탑승 영웅 추천을 보여줍니다. 확률형 스킬은 기댓값으로 계산해요.</div>
+
+<h2>설정</h2>
+<div class="grid g4">
+  <div class="card"><label class="l">열린 세대</label><select id="gen"></select></div>
+  <div class="card"><label class="l">상황</label><div class="seg" id="mode"><button data-v="attack" class="on">공성</button><button data-v="defend">수성</button></div></div>
+  <div class="card"><label class="l">확률형 스킬</label><div class="seg" id="prob"><button data-v="ev" class="on">기댓값</button><button data-v="proc">발동 기준</button></div></div>
+  <div class="card"><label class="l">병종 비율 (보/궁/기 %)</label><div style="display:flex;gap:4px"><input id="rInf" type="number" value="34"><input id="rArc" type="number" value="33"><input id="rCav" type="number" value="33"></div></div>
+</div>
+
+<h2>집결장 영웅</h2>
+<div class="grid g3" id="leaders"></div>
+
+<h2>집결장 스킬 합산</h2>
+<div class="card" id="idTableL"></div>
+<details><summary>적용된 스킬 목록 보기</summary><div class="card" id="skillListL" style="margin-top:6px"></div></details>
+
+<h2>집결원 탑승 영웅 추천 (4명)</h2>
+<div class="dim" style="margin-bottom:8px">집결원은 탑승 영웅의 <b>첫 번째 원정 스킬</b>만 적용. 같은 ID는 합연산, 다른 ID는 곱연산 — 집결장이 이미 높게 쌓은 ID를 피하는 조합이 위로 올라옵니다.</div>
+<div class="grid g2">
+  <div class="card"><div class="dim" style="margin-bottom:6px">추천 순위 (클릭하면 오른쪽에 반영 · 숫자는 종합 배율)</div><div id="recs"></div></div>
+  <div class="card">
+    <div class="dim" style="margin-bottom:6px">선택한 조합</div>
+    <div class="grid g2" id="joinerSel"></div>
+    <div id="idTableJ" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<div class="foot">계산 체계: 우유(582) · 사이트 제작: 프랜시스베이컨(943)</div>
+</div>
+<script>
+// ===== 킹샷 영웅 원정 스킬 데이터 (5렙 기준) =====
+// 출처: kingshotdata.com  /  ID 분류: joiner_hero_guide v10
+// op 공격풀: 101 파괴력  102 공격력  103 피해증가  104 스킬피해증가  301 적받는피해증가  302 적방어감소  303 적체력감소
+// op 방어풀: 111 받는피해감소  112 방어력  113 체력  201 적피해감소  202 적공격력감소  203 적파괴력감소
+// chance: 발동 확률(%) — 없으면 항상 적용.  turns: 지속 턴(참고용)
+// chancePerType: 병종마다 독립 판정되는 확률 → 실제 확률 = 1-(1-p)^(비율>0인 병종 수)
+// scope: "all" | "inf" | "cav" | "arc" | ["inf","arc"]  (기본 all)
+// weapon.mode: "attack"(공성/집결 시작) | "defend"(수성) | "all"
+// status: "ok" 확인됨 / "todo" 아직 미입력
+// joiner:false → 1스킬이 다른 영웅과 동일해서 집결원 후보에서 제외 (집결장 선택은 가능)
+const HEROES = [
+  // ---------- Gen 2 (Day 40) ----------
+  { id:"zoe", ko:"조이", en:"Zoe", gen:2, type:"inf", rarity:"legendary", status:"ok",
+    skills:[
+      { name:"Sundering Wound", ko:"분쇄의 상처", chance:20, turns:3, effects:[{op:103,val:40}] },
+      { name:"Charisma", ko:"카리스마", effects:[{op:102,val:25}] },
+      { name:"Infinite Arsenal", ko:"무한한 무기고", chance:50, effects:[{op:301,val:50}] },
+    ],
+    weapon:{ name:"Dark Lady", ko:"암흑의 여인", mode:"defend", effects:[{op:102,val:15}] } },
+  { id:"hilde", ko:"힐데", en:"Hilde", gen:2, type:"cav", rarity:"legendary", status:"ok",
+    skills:[
+      { name:"Noble Path", ko:"고귀한 길", effects:[{op:102,val:15},{op:112,val:10}] },
+      { name:"Elixir of Strength", ko:"힘의 영약", chance:25, effects:[{op:103,val:100}] },
+      { name:"Trial by Fire", ko:"시련의 불", chance:40, effects:[{op:111,val:50}] },
+    ],
+    weapon:{ name:"Fortitude", ko:"불굴", mode:"defend", effects:[{op:113,val:15}] } },
+  { id:"marlin", ko:"말린", en:"Marlin", gen:2, type:"arc", rarity:"legendary", status:"ok",
+    skills:[
+      { name:"Wild Card", ko:"와일드 카드", chance:40, effects:[{op:103,val:50}] },
+      { name:"Rumhead", ko:"럼주 애호가", chance:20, turns:2, effects:[{op:203,val:50}] },
+    ],
+    weapon:{ name:"Admiral of the Line", ko:"전열의 제독", mode:"attack", effects:[{op:101,val:15}] } },
+
+  // ---------- Gen 3 (Day 120) ----------
+  { id:"eric", ko:"에릭", en:"Eric", gen:3, type:"inf", rarity:"legendary", status:"ok",
+    skills:[
+      { name:"Holy Warrior", ko:"성전사", effects:[{op:202,val:20}] },
+      { name:"Conviction", ko:"신념", effects:[{op:111,val:20}] },
+      { name:"Exhortation", ko:"독려", effects:[{op:113,val:25}] },
+    ],
+    weapon:{ name:"Vanguard", ko:"선봉", mode:"defend", effects:[{op:112,val:15}] } },
+  { id:"petra", ko:"페트라", en:"Petra", gen:3, type:"cav", rarity:"legendary", status:"ok",
+    skills:[
+      { name:"Evil Eye", ko:"사악한 눈", chancePerType:50, effects:[{op:301,val:50}] },   // 병종 1개 50% / 2개 75% / 3개 87.5% (병종별 독립 판정)
+      { name:"The Favor", ko:"행운", chance:50, effects:[{op:102,val:50}] },
+      { name:"The Shield", ko:"방패", chance:40, effects:[{op:111,val:50}] },
+    ],
+    weapon:{ name:"Cosmic Eye", ko:"우주의 눈", mode:"attack", effects:[{op:102,val:15}] } },
+  { id:"jaeger", joiner:false /* 1스킬 동일 → 조이 사용 */, ko:"예거", en:"Jaeger", gen:3, type:"arc", rarity:"legendary", status:"ok",
+    skills:[
+      { name:"The Tempest", ko:"폭풍", chance:20, turns:3, effects:[{op:103,val:40}] },
+      { name:"The Resistance", ko:"저항", chance:20, turns:2, effects:[{op:203,val:50}] },
+      { name:"The Celebration", ko:"축제", effects:[{op:113,val:25}] },
+    ],
+    weapon:{ name:"Hymn to Survival", ko:"생존의 찬가", mode:"defend", effects:[{op:113,val:15}] } },
+
+  // ---------- Gen 1 (Day 0) — 전설(SSR) ----------
+  { id:"helga", joiner:false /* 1스킬 동일 → 자벨 사용 */, ko:"헬가", en:"Helga", gen:1, type:"inf", rarity:"legendary", status:"ok",
+    skills:[
+      { name:"Oath of Guardian", ko:"수호자의 맹세", chance:40, effects:[{op:111,val:50}] },
+      { name:"Echoes of Valhalla", ko:"발할라의 메아리", effects:[{op:102,val:25}] },
+      { name:"Nature's Balance", ko:"자연의 균형", effects:[{op:101,val:25}] },
+    ],
+    weapon:{ name:"Zeal", ko:"열의", mode:"attack", effects:[{op:101,val:15}] } },
+  { id:"amadeus", joiner:false /* 1스킬 동일 → 첸코 사용 */, ko:"아마데우스", en:"Amadeus", gen:1, type:"inf", rarity:"legendary", status:"ok",
+    skills:[
+      { name:"Battle Ready", ko:"전투 준비", effects:[{op:101,val:25}] },
+      { name:"Way of the Blade", ko:"검의 길", effects:[{op:102,val:25}] },
+      { name:"Unrighteous Strike", ko:"불의의 일격", chance:40, effects:[{op:103,val:50}] },
+    ],
+    weapon:{ name:"Discernment", ko:"통찰", mode:"attack", effects:[{op:102,val:15}] } },
+  { id:"jabel", ko:"자벨", en:"Jabel", gen:1, type:"cav", rarity:"legendary", status:"ok",
+    skills:[
+      { name:"Rally Flag", ko:"집결의 깃발", chance:40, effects:[{op:111,val:50}] },
+      { name:"Hero's Domain", ko:"영웅의 영역", chance:50, effects:[{op:103,val:50}] },
+      { name:"Youthful Rage", ko:"젊음의 분노", effects:[{op:103,val:25}] },   // 설명은 피해량+25%, 라벨은 파괴력 — 확인 필요
+    ],
+    weapon:{ name:"Divine Strength", ko:"신성한 힘", mode:"defend", effects:[{op:101,val:15}] } },
+  { id:"saul", ko:"살로", en:"Saul", gen:1, type:"arc", rarity:"legendary", status:"ok",
+    skills:[
+      { name:"Taskforce Training", ko:"특수부대 훈련", effects:[{op:112,val:10},{op:113,val:15}] },
+      { name:"Resourceful", ko:"자원 활용", effects:[] },   // 건설 속도 — 전투 무관
+      { name:"Positional Battler", ko:"진지 전투", effects:[{op:101,val:25}] },
+    ],
+    weapon:{ name:"Defend to Attack", ko:"수비에서 공격으로", mode:"defend", effects:[{op:102,val:15}] } },
+  // ---------- Gen 1 — 에픽(SR): 원정 스킬 2개, 전용무기 없음 ----------
+  { id:"howard", ko:"하워드", en:"Howard", gen:1, type:"inf", rarity:"epic", status:"ok",
+    skills:[
+      { name:"Defenders' Edge", ko:"수비수의 우위", effects:[{op:111,val:20}] },
+      { name:"Weaken", ko:"약화", effects:[{op:202,val:20}] },
+    ], weapon:null },
+  { id:"gordon", ko:"고든", en:"Gordon", gen:1, type:"cav", rarity:"epic", status:"ok",
+    skills:[
+      { name:"Super Nutrients", ko:"슈퍼 영양식", effects:[{op:113,val:25}] },
+      { name:"Trash Talk", ko:"입담", effects:[{op:102,val:25}] },
+    ], weapon:null },
+  { id:"quinn", joiner:false /* 1스킬 동일 → 하워드 사용 */, ko:"퀸", en:"Quinn", gen:1, type:"arc", rarity:"epic", status:"ok",
+    skills:[
+      { name:"Sixth Sense", ko:"육감", effects:[{op:111,val:20}] },
+      { name:"Precision Shot", ko:"정밀 사격", chance:50, effects:[{op:103,val:50}] },
+    ], weapon:null },
+  { id:"chenko", ko:"첸코", en:"Chenko", gen:1, type:"cav", rarity:"epic", status:"ok",
+    skills:[
+      { name:"Stand of Arms", ko:"무장 태세", effects:[{op:101,val:25}] },
+      { name:"Shield Wall", ko:"방패벽", effects:[{op:111,val:20}] },
+    ], weapon:null },
+  { id:"diana", ko:"디아나", en:"Diana", gen:1, type:"arc", rarity:"epic", status:"ok",
+    skills:[
+      { name:"Iron Constitution", ko:"강철 체력", effects:[] },   // 체력 소모 감소 — 전투 무관
+      { name:"Quick Paced", ko:"빠른 발걸음", effects:[] },       // 행군 속도 — 전투 무관
+    ], weapon:null },
+  { id:"amane", ko:"아마네", en:"Amane", gen:1, type:"arc", rarity:"epic", status:"ok",
+    skills:[
+      { name:"Tri-Phalanx", ko:"삼중 밀집진", effects:[{op:102,val:25}] },
+      { name:"Exorcism", ko:"퇴마", effects:[] },   // 치료 속도 — 전투 무관
+    ], weapon:null },
+  { id:"yeonwoo", joiner:false /* 1스킬 동일 → 첸코 사용 */, ko:"연우", en:"Yeonwoo", gen:1, type:"arc", rarity:"epic", status:"ok",
+    skills:[
+      { name:"On Guard", ko:"경계 태세", effects:[{op:101,val:25}] },
+      { name:"Well-Traveled", ko:"여행자", effects:[] },   // 연구 속도 — 전투 무관
+    ], weapon:null },
+  { id:"fahd", ko:"파드", en:"Fahd", gen:1, type:"cav", rarity:"epic", status:"ok",
+    skills:[
+      { name:"Desert Eclipse", ko:"사막의 일식", effects:[{op:201,val:20}] },
+      { name:"Pathfinder", ko:"길잡이", effects:[] },   // 사냥 행군 속도 — 전투 무관
+    ], weapon:null },
+
+  // ---------- Gen 4 (Day 195) ----------
+  { id:"alcar", ko:"알카르", en:"Alcar", gen:4, type:"inf", rarity:"legendary", status:"ok",
+    skills:[
+      { name:"Rescuing Hands", ko:"구원의 손길", chance:40, scope:["inf","arc"], effects:[{op:111,val:70}] },   // 5턴마다 2턴 → 가동률 40%
+      { name:"Praetorian Will", ko:"근위대의 의지", effects:[{op:103,val:100,scope:"inf"},{op:103,val:10,scope:["cav","arc"]}] },
+      { name:"Carpe Diem", ko:"카르페 디엠", effects:[{op:103,val:60,scope:"inf"},{op:301,val:25}] },
+    ],
+    weapon:{ name:"Vow of Honor", ko:"명예의 서약", mode:"defend", effects:[{op:113,val:15}] } },
+  { id:"margot", joiner:false /* 1스킬 동일 → 아마네 사용 */, ko:"마고", en:"Margot", gen:4, type:"cav", rarity:"legendary", status:"ok",
+    skills:[
+      { name:"Warbringer", ko:"전쟁의 전령", effects:[{op:102,val:25}] },
+      { name:"Subterfuge", ko:"기만술", chance:20, effects:[{op:111,val:100}] },   // 20% 확률 일반공격 회피
+      { name:"Sleight Hand", ko:"손재주", chance:25, scope:"cav", effects:[{op:103,val:200}] },
+    ],
+    weapon:{ name:"Pugilist", ko:"권투가", mode:"defend", effects:[{op:101,val:15}] } },
+  { id:"rosa", joiner:false /* 1스킬 동일 → 말린 사용 */, ko:"로사", en:"Rosa", gen:4, type:"arc", rarity:"legendary", status:"ok",
+    skills:[
+      { name:"Chaos Gambit", ko:"혼돈의 도박", chance:40, effects:[{op:103,val:50}] },
+      { name:"Rose of War", ko:"전쟁의 장미", effects:[{op:201,val:20}] },
+      { name:"Golden Rhythm", ko:"황금 리듬", scope:"arc", effects:[{op:102,val:30}] },
+    ],
+    weapon:{ name:"Perihelion", ko:"근일점", mode:"attack", effects:[{op:101,val:15}] } },
+
+  // ---------- Gen 5 (Day 270) ----------
+  { id:"longfei", joiner:false /* 1스킬 동일 → 자벨 사용 */, ko:"롱페이", en:"Long Fei", gen:5, type:"inf", rarity:"legendary", status:"ok",
+    skills:[
+      { name:"Mighty Paragon", ko:"위대한 귀감", chance:40, effects:[{op:111,val:50}] },
+      { name:"Celestial Sustenance", ko:"천상의 양식", effects:[{op:112,val:25}] },
+      { name:"Art of War", ko:"손자병법", chance:25, effects:[{op:103,val:100}] },
+    ],
+    weapon:{ name:"Strategic Strike", ko:"전략적 타격", mode:"defend", effects:[{op:102,val:15}] } },
+  { id:"thrud", ko:"스루드", en:"Thrud", gen:5, type:"cav", rarity:"legendary", status:"ok",
+    // 가이드 기준 집결원 스킬은 Battle Hunger → 1번에 배치 (사이트 표기 순서와 다름, 게임에서 확인 필요)
+    skills:[
+      { name:"Battle Hunger", ko:"전투 갈망", scope:["inf","arc"], effects:[{op:111,val:15},{op:103,val:15}] },
+      { name:"Reckless Charge", ko:"무모한 돌격", chance:20, scope:"cav", effects:[{op:103,val:100}] },
+      { name:"Ancestral Guidance", ko:"조상의 인도", chance:50, effects:[{op:103,val:25},{op:111,val:25}] },   // 기병 4회 공격마다 2턴 → 가동률 ~50%
+    ],
+    weapon:{ name:"Wolf-Kissed", ko:"늑대의 입맞춤", mode:"attack", effects:[{op:101,val:15}] } },
+  { id:"vivian", ko:"비비안", en:"Vivian", gen:5, type:"arc", rarity:"legendary", status:"ok",
+    skills:[
+      { name:"Crouching Tiger", ko:"웅크린 호랑이", effects:[{op:301,val:25}] },
+      { name:"Focus Fire", ko:"집중 사격", chance:25, effects:[{op:103,val:100},{op:301,val:15}] },   // 4회 공격마다
+      { name:"Trap of Greed", ko:"탐욕의 덫", chance:25, scope:"arc", effects:[{op:103,val:60}] },
+    ],
+    weapon:{ name:"Money Driven", ko:"돈이 원동력", mode:"defend", effects:[{op:112,val:15}] } },
+
+  // ---------- Gen 6 (Day 360) ----------
+  { id:"triton", ko:"트리톤", en:"Triton", gen:6, type:"inf", rarity:"legendary", status:"ok",
+    skills:[
+      { name:"Command of Power", ko:"권능의 명령", effects:[{op:112,val:25}] },
+      { name:"Warfare of Power", ko:"권능의 전쟁", effects:[{op:104,val:30}] },
+      { name:"Oath of Power", ko:"권능의 서약", effects:[{op:113,val:20,scope:"inf"},{op:113,val:30,scope:["cav","arc"]}] },
+    ],
+    weapon:{ name:"Whale Call", ko:"고래의 부름", mode:"defend", effects:[{op:112,val:15}] } },
+  { id:"sophia", joiner:false /* 1스킬 동일 → 자벨 사용 */, ko:"소피아", en:"Sophia", gen:6, type:"cav", rarity:"legendary", status:"ok",
+    skills:[
+      { name:"Arcane Pact", ko:"비전 계약", chance:40, effects:[{op:111,val:50}] },
+      { name:"Terror - Deathblow", ko:"공포 - 필살", chance:50, scope:"cav", effects:[{op:103,val:200}] },   // 공포 2턴마다 1턴 → ~50%
+      { name:"Terror - Annihilation", ko:"공포 - 섬멸", chance:50, effects:[{op:103,val:75}] },
+    ],
+    weapon:{ name:"Queen of Night", ko:"밤의 여왕", mode:"defend", effects:[{op:101,val:15}] } },
+  { id:"yang", ko:"양", en:"Yang", gen:6, type:"arc", rarity:"legendary", status:"ok",
+    skills:[
+      { name:"Avalanche", ko:"눈사태", chance:25, effects:[{op:103,val:100}] },   // 4턴마다 추가 타격
+      { name:"Ice Zone", ko:"빙결 지대", chance:40, scope:"arc", effects:[{op:103,val:100}] },
+      { name:"Ambush", ko:"매복", chance:40, effects:[{op:103,val:50}] },   // 증가량 미표기 → 50% 가정, 확인 필요
+    ],
+    weapon:{ name:"Offensive Defense", ko:"공격적 방어", mode:"attack", effects:[{op:101,val:15}] } },
+
+  // ---------- Gen 7 (Day 440) ----------
+  { id:"charles", ko:"찰스", en:"Charles", gen:7, type:"inf", rarity:"legendary", status:"ok",
+    skills:[
+      { name:"Intimidation", ko:"위압", effects:[{op:203,val:20}] },
+      { name:"Iron Bodies", ko:"강철 몸체", effects:[{op:111,val:20}] },
+      { name:"Great Justice", ko:"위대한 정의", effects:[{op:113,val:25}] },
+    ],
+    weapon:{ name:"Shock and Awe", ko:"충격과 공포", mode:"defend", effects:[{op:113,val:15}] } },
+  { id:"ava", ko:"에이바", en:"Ava", gen:7, type:"cav", rarity:"legendary", status:"ok",
+    skills:[
+      { name:"Dissolution", ko:"해체", effects:[{op:302,val:25}] },
+      { name:"Chiaroscuro", ko:"명암법", chance:50, effects:[{op:301,val:50}] },   // 4턴마다 2턴
+      { name:"Light and Cold", ko:"빛과 냉기", effects:[{op:101,val:25}] },
+    ],
+    weapon:{ name:"Color Storm", ko:"색채 폭풍", mode:"attack", effects:[{op:101,val:15}] } },
+  { id:"weewoo", ko:"위&우", en:"Wee & Woo", gen:7, type:"arc", rarity:"legendary", status:"ok",
+    skills:[
+      { name:"Artillerymen", ko:"포병", effects:[{op:102,val:15},{op:101,val:10}] },
+      { name:"Chain Shelling", ko:"연쇄 포격", effects:[{op:103,val:18}] },   // 적 궁병+30%/보병+25% → 적 병종 균등 가정 평균
+      { name:"Boom Boom", ko:"붐붐", chance:50, effects:[{op:103,val:50}] },
+    ],
+    weapon:{ name:"Landmines", ko:"지뢰", mode:"defend", effects:[{op:102,val:15}] } },
+
+  // ---------- Gen 8 (Day 540) ----------
+  { id:"diego", ko:"디에고", en:"Diego", gen:8, type:"inf", rarity:"legendary", status:"ok",
+    skills:[
+      { name:"Defensive Guidance", ko:"방어 지침", effects:[{op:112,val:15},{op:113,val:10}] },
+      { name:"Piercing Aura", ko:"관통의 기운", chance:50, effects:[{op:103,val:50}] },
+      { name:"Cold Frost", ko:"차가운 서리", effects:[{op:101,val:25}] },
+    ],
+    weapon:{ name:"Extraordinary", ko:"비범함", mode:"defend", effects:[{op:112,val:15}] } },
+  { id:"liz", ko:"리즈", en:"Liz", gen:8, type:"cav", rarity:"legendary", status:"ok",
+    skills:[
+      { name:"Alloyed Agent", ko:"합금 시약", chance:50, effects:[{op:101,val:50}] },
+      { name:"Vitalis Potion", ko:"활력 물약", effects:[{op:113,val:25}] },
+      { name:"Horsemaster", ko:"말 조련사", chance:50, scope:"cav", effects:[{op:103,val:150}] },
+    ],
+    weapon:{ name:"Power Mix", ko:"파워 믹스", mode:"defend", effects:[{op:101,val:15}] } },
+  { id:"luna", joiner:false /* 1스킬 동일 → 아마네 사용 */, ko:"루나", en:"Luna", gen:8, type:"arc", rarity:"legendary", status:"ok",
+    skills:[
+      { name:"Driving Light", ko:"몰아내는 빛", effects:[{op:102,val:25}] },
+      { name:"Woodland Vengeance", ko:"숲의 복수", chance:50, effects:[{op:202,val:50}] },   // 2턴마다 1턴
+      { name:"Arrowflash", ko:"섬광 화살", scope:"arc", effects:[{op:103,val:50}] },
+    ],
+    weapon:{ name:"Moonlit Splendor", ko:"달빛의 광휘", mode:"attack", effects:[{op:102,val:15}] } },
+];
+
+// ===== 계산 엔진 =====
+const OPS = {101:"파괴력",102:"공격력",103:"피해 증가",104:"스킬 피해 증가",301:"적 받는피해 증가",302:"적 방어 감소",303:"적 체력 감소",111:"받는피해 감소",112:"방어력",113:"체력",201:"적 피해 감소",202:"적 공격력 감소",203:"적 파괴력 감소"};
+const OFF = [101,102,103,104,301,302,303], DEF = [111,112,113,201,202,203];
+const TYPES = {inf:"보병",arc:"궁병",cav:"기병"};
+const KO_GEN = (g)=>`${g}세대`;
+const st = { gen:3, mode:"attack", prob:"ev", ratio:{inf:34,arc:33,cav:33}, leaders:{inf:"",arc:"",cav:""}, weapon:{inf:true,arc:true,cav:true}, joiners:["","","",""] };
+const byId = Object.fromEntries(HEROES.map(h=>[h.id,h]));
+
+function scopeShare(scope){ if(!scope||scope==="all") return 1; const arr=Array.isArray(scope)?scope:[scope]; const tot=st.ratio.inf+st.ratio.arc+st.ratio.cav||1; return arr.reduce((a,t)=>a+(st.ratio[t]||0),0)/tot; }
+function skillEffects(skill){ // → [{op,val}]
+  let chance = skill.chance;
+  if(skill.chancePerType){ const n=["inf","arc","cav"].filter(t=>st.ratio[t]>0).length; chance = 100*(1-Math.pow(1-skill.chancePerType/100, n)); }
+  const p = chance && st.prob==="ev" ? chance/100 : 1;
+  return skill.effects.map(e=>({op:e.op, val:e.val*p*scopeShare(e.scope||skill.scope)}));
+}
+function sumIds(effs){ const m={}; effs.forEach(e=>{m[e.op]=(m[e.op]||0)+e.val;}); return m; }
+function mult(ids, keys){ return keys.reduce((a,k)=>a*(1+(ids[k]||0)/100),1); }
+function leaderEffects(){ const out=[]; const list=[];
+  for(const t of ["inf","arc","cav"]){ const h=byId[st.leaders[t]]; if(!h) continue;
+    h.skills.forEach(s=>{ out.push(...skillEffects(s)); list.push({h,s,kind:"skill"}); });
+    if(st.weapon[t] && h.weapon && (h.weapon.mode==="all"||h.weapon.mode===st.mode)){ out.push(...skillEffects(h.weapon)); list.push({h,s:h.weapon,kind:"weapon"}); }
+  }
+  return {effs:out,list};
+}
+function joinerEffects(ids){ const out=[]; ids.forEach(id=>{ const h=byId[id]; if(h&&h.skills[0]) out.push(...skillEffects(h.skills[0])); }); return out; }
+function score(effs){ const ids=sumIds(effs); const o=mult(ids,OFF), d=mult(ids,DEF); return {ids,o,d,t:o*d}; }
+
+// 추천: 후보 영웅(첫 스킬 있음, 세대 이내) 중 4명 중복 허용 조합
+function candidates(){ return HEROES.filter(h=>h.gen<=st.gen && h.joiner!==false && h.skills[0] && h.skills[0].effects.length>0); }
+function recommend(){
+  const base=leaderEffects().effs; const c=candidates(); const n=c.length; const res=[];
+  for(let a=0;a<n;a++)for(let b=a;b<n;b++)for(let x=b;x<n;x++)for(let y=x;y<n;y++){
+    const ids=[c[a].id,c[b].id,c[x].id,c[y].id]; const s=score([...base,...joinerEffects(ids)]); res.push({heroes:ids,...s});
+  }
+  res.sort((p,q)=>q.t-p.t); return res.slice(0,12);
+}
+
+// ===== UI =====
+const $=(s)=>document.querySelector(s);
+const pct=(v)=>v.toFixed(2)+"×";
+function heroLabel(h){ return `${h.ko} (${h.en})${h.status==="partial"?" ·일부":h.status==="todo"?" ·미입력":""}`; }
+function idTable(ids, baseIds){ const keys=[...OFF,...DEF].filter(k=>ids[k]||(baseIds&&baseIds[k]));
+  if(!keys.length) return '<div class="dim">적용된 스킬이 없어요.</div>';
+  const max=Math.max(...keys.map(k=>ids[k]||0),1);
+  return '<table><tr><th>항목</th><th class="n">합계</th></tr>'+keys.map(k=>{const v=ids[k]||0;const add=baseIds?v-(baseIds[k]||0):0;const isO=OFF.includes(k);
+    return `<tr><td><span class="tag ${isO?"o":"d"}">${isO?"공격":"방어"}</span> ${OPS[k]}<div class="bar ${isO?"":"d"}"><i style="width:${v/max*100}%"></i></div></td><td class="n">${v.toFixed(1)}%${add>0.05?`<div class="dim" style="font-size:11px">+${add.toFixed(1)}</div>`:""}</td></tr>`;}).join("")+'</table>'; }
+
+function renderSetup(){
+  $("#gen").innerHTML=[1,2,3,4,5,6,7,8].map(g=>`<option value="${g}" ${g===st.gen?"selected":""}>${g}세대까지</option>`).join("");
+  $("#gen").onchange=e=>{st.gen=+e.target.value;renderLeaders();update();};
+  for(const id of ["mode","prob"]) $("#"+id).querySelectorAll("button").forEach(b=>b.onclick=()=>{ $("#"+id).querySelectorAll("button").forEach(x=>x.classList.remove("on")); b.classList.add("on"); st[id]=b.dataset.v; update(); });
+  for(const [k,el] of [["inf","#rInf"],["arc","#rArc"],["cav","#rCav"]]) $(el).oninput=e=>{st.ratio[k]=+e.target.value||0;update();};
+}
+function renderLeaders(){
+  $("#leaders").innerHTML=["inf","arc","cav"].map(t=>{ const opts=HEROES.filter(h=>h.type===t&&h.gen<=st.gen);
+    if(st.leaders[t]&&!opts.find(h=>h.id===st.leaders[t])) st.leaders[t]="";
+    return `<div class="card"><label class="l">${TYPES[t]} 집결장</label><select data-t="${t}" class="ld"><option value="">— 선택 —</option>${opts.map(h=>`<option value="${h.id}" ${st.leaders[t]===h.id?"selected":""}>${heroLabel(h)}</option>`).join("")}</select>
+      <label class="chk"><input type="checkbox" class="wp" data-t="${t}" ${st.weapon[t]?"checked":""}> 전용무기 스킬 적용 (10강)</label><div class="dim" id="ldinfo-${t}" style="margin-top:6px;font-size:12px"></div></div>`; }).join("");
+  document.querySelectorAll(".ld").forEach(s=>s.onchange=e=>{st.leaders[e.target.dataset.t]=e.target.value;update();});
+  document.querySelectorAll(".wp").forEach(c=>c.onchange=e=>{st.weapon[e.target.dataset.t]=e.target.checked;update();});
+}
+function renderJoinerSel(){ const c=candidates();
+  $("#joinerSel").innerHTML=st.joiners.map((j,i)=>`<select class="jn" data-i="${i}"><option value="">— ${i+1}번 —</option>${c.map(h=>`<option value="${h.id}" ${j===h.id?"selected":""}>${h.ko}</option>`).join("")}</select>`).join("");
+  document.querySelectorAll(".jn").forEach(s=>s.onchange=e=>{st.joiners[+e.target.dataset.i]=e.target.value;renderJoinerResult();});
+}
+let lastRecs=[];
+function renderJoinerResult(){ const base=leaderEffects().effs; const baseS=score(base); const s=score([...base,...joinerEffects(st.joiners)]);
+  $("#idTableJ").innerHTML=idTable(s.ids, baseS.ids);
+  document.querySelectorAll(".rec").forEach((r,i)=>r.classList.toggle("sel", JSON.stringify([...lastRecs[i]?.heroes||[]].sort())===JSON.stringify([...st.joiners].sort())));
+}
+function update(){
+  const {effs,list}=leaderEffects(); const s=score(effs);
+  $("#idTableL").innerHTML=idTable(s.ids);
+  $("#skillListL").innerHTML=list.length?'<table>'+list.map(({h,s:sk,kind})=>`<tr><td>${h.ko}</td><td>${kind==="weapon"?'<span class="tag">전용</span>':""}${sk.ko||sk.name}${sk.chance?` <span class="tag">${sk.chance}%</span>`:sk.chancePerType?` <span class="tag">${(100*(1-Math.pow(1-sk.chancePerType/100,["inf","arc","cav"].filter(t=>st.ratio[t]>0).length))).toFixed(1)}%</span>`:""}${sk.scope&&sk.scope!=="all"?` <span class="tag">${[].concat(sk.scope).map(t=>TYPES[t]).join("·")}</span>`:""}</td><td class="n">${skillEffects(sk).map(e=>`${OPS[e.op]} ${e.val>=0?"+":""}${e.val.toFixed(1)}%`).join("<br>")}</td></tr>`).join("")+'</table>':'<div class="dim">집결장을 선택하세요.</div>';
+  for(const t of ["inf","arc","cav"]){ const h=byId[st.leaders[t]]; const el=$("#ldinfo-"+t); if(!el) continue;
+    el.innerHTML=h?(h.status!=="ok"?`<span class="warn">이 영웅은 스킬 데이터가 ${h.status==="todo"?"아직 없어요":"일부만 있어요"}. 결과가 불완전합니다.</span>`:h.weapon?`전용무기: ${h.weapon.ko} (${h.weapon.mode==="attack"?"공성":h.weapon.mode==="defend"?"수성":"항상"})`:"전용무기 없음"):""; }
+  // 추천
+  lastRecs=recommend();
+  $("#recs").innerHTML=lastRecs.length?lastRecs.map((r,i)=>`<div class="rec" data-i="${i}"><span class="rk">${i+1}</span><span class="hs">${r.heroes.map(id=>`<span class="pill">${byId[id].ko}</span>`).join("")}</span><span class="sc">${pct(r.t)}</span></div>`).join(""):'<div class="dim">후보 영웅이 없어요.</div>';
+  document.querySelectorAll(".rec").forEach(r=>r.onclick=()=>{st.joiners=[...lastRecs[+r.dataset.i].heroes];renderJoinerSel();renderJoinerResult();});
+  if(!st.joiners.some(Boolean)&&lastRecs[0]) st.joiners=[...lastRecs[0].heroes];
+  renderJoinerSel(); renderJoinerResult();
+}
+renderSetup(); renderLeaders(); update();
+</script></body></html>
