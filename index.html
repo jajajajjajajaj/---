@@ -49,8 +49,10 @@ details{margin-top:10px}summary{cursor:pointer;color:var(--dim);font-size:13px}
   <div class="card"><label class="l">열린 세대</label><select id="gen"></select></div>
   <div class="card"><label class="l">상황</label><div class="seg" id="mode"><button data-v="attack" class="on">공성</button><button data-v="defend">수성</button></div></div>
   <div class="card"><label class="l">확률형 스킬</label><div class="seg" id="prob"><button data-v="ev" class="on">기댓값</button><button data-v="proc">발동 기준</button></div></div>
-  <div class="card"><label class="l">병종 비율 (보/궁/기 %)</label><div style="display:flex;gap:4px"><input id="rInf" type="number" value="34"><input id="rArc" type="number" value="33"><input id="rCav" type="number" value="33"></div></div>
+  <div class="card"><label class="l">병력 구성 (보/궁/기)</label><select id="preset"></select>
+    <div style="display:flex;gap:4px;margin-top:6px"><input id="rInf" type="number" value="60"><input id="rArc" type="number" value="20"><input id="rCav" type="number" value="20"></div></div>
 </div>
+<div class="card" style="margin-top:10px" id="styleInfo"></div>
 
 <h2>집결장 영웅</h2>
 <div class="grid g3" id="leaders"></div>
@@ -323,7 +325,24 @@ const OPS = {101:"파괴력",102:"공격력",103:"피해 증가",104:"스킬 피
 const OFF = [101,102,103,104,301,302,303], DEF = [111,112,113,201,202,203];
 const TYPES = {inf:"보병",arc:"궁병",cav:"기병"};
 const KO_GEN = (g)=>`${g}세대`;
-const st = { gen:3, mode:"attack", prob:"ev", ratio:{inf:34,arc:33,cav:33}, leaders:{inf:"",arc:"",cav:""}, weapon:{inf:true,arc:true,cav:true}, joiners:["","","",""] };
+const PRESETS = [
+  { key:"505", inf:50, arc:0,  cav:50, style:"attack" },
+  { key:"640", inf:60, arc:40, cav:0,  style:"defend" },
+  { key:"613", inf:60, arc:10, cav:30, style:"balance" },
+  { key:"622", inf:60, arc:20, cav:20, style:"balance" },
+  { key:"523", inf:50, arc:20, cav:30, style:"balance" },
+  { key:"514", inf:50, arc:10, cav:40, style:"balance" },
+  { key:"custom", style:null },
+];
+const STYLE_KO = { attack:"공격형", defend:"방어형", balance:"밸런스형" };
+function detectStyle(){ const p=PRESETS.find(x=>x.key===st.preset); if(p&&p.style) return p.style;
+  const tot=st.ratio.inf+st.ratio.arc+st.ratio.cav||1, cav=st.ratio.cav/tot*100, arc=st.ratio.arc/tot*100;
+  if(cav>=40&&arc<=10) return "attack"; if(arc>=30&&cav<=10) return "defend"; return "balance"; }
+function weights(){ const sty=detectStyle(); let wo=1, wd=1;
+  if(sty==="attack"){wo=1.4;wd=0.6;} else if(sty==="defend"){wo=0.6;wd=1.4;}
+  if(st.mode==="attack"){wo+=0.3;wd-=0.3;} else {wo-=0.3;wd+=0.3;}
+  return {wo:Math.max(wo,0.2), wd:Math.max(wd,0.2), style:sty}; }
+const st = { gen:3, mode:"attack", prob:"ev", preset:"622", ratio:{inf:60,arc:20,cav:20}, leaders:{inf:"",arc:"",cav:""}, weapon:{inf:true,arc:true,cav:true}, joiners:["","","",""] };
 const byId = Object.fromEntries(HEROES.map(h=>[h.id,h]));
 
 function scopeShare(scope){ if(!scope||scope==="all") return 1; const arr=Array.isArray(scope)?scope:[scope]; const tot=st.ratio.inf+st.ratio.arc+st.ratio.cav||1; return arr.reduce((a,t)=>a+(st.ratio[t]||0),0)/tot; }
@@ -343,7 +362,7 @@ function leaderEffects(){ const out=[]; const list=[];
   return {effs:out,list};
 }
 function joinerEffects(ids){ const out=[]; ids.forEach(id=>{ const h=byId[id]; if(h&&h.skills[0]) out.push(...skillEffects(h.skills[0])); }); return out; }
-function score(effs){ const ids=sumIds(effs); const o=mult(ids,OFF), d=mult(ids,DEF); return {ids,o,d,t:o*d}; }
+function score(effs){ const ids=sumIds(effs); const o=mult(ids,OFF), d=mult(ids,DEF); const {wo,wd}=weights(); return {ids,o,d,t:Math.pow(o,wo)*Math.pow(d,wd)}; }
 
 // 추천: 후보 영웅(첫 스킬 있음, 세대 이내) 중 4명 중복 허용 조합
 function candidates(){ return HEROES.filter(h=>h.gen<=st.gen && h.joiner!==false && h.skills[0] && h.skills[0].effects.length>0); }
@@ -369,7 +388,9 @@ function renderSetup(){
   $("#gen").innerHTML=[1,2,3,4,5,6,7,8].map(g=>`<option value="${g}" ${g===st.gen?"selected":""}>${g}세대까지</option>`).join("");
   $("#gen").onchange=e=>{st.gen=+e.target.value;renderLeaders();update();};
   for(const id of ["mode","prob"]) $("#"+id).querySelectorAll("button").forEach(b=>b.onclick=()=>{ $("#"+id).querySelectorAll("button").forEach(x=>x.classList.remove("on")); b.classList.add("on"); st[id]=b.dataset.v; update(); });
-  for(const [k,el] of [["inf","#rInf"],["arc","#rArc"],["cav","#rCav"]]) $(el).oninput=e=>{st.ratio[k]=+e.target.value||0;update();};
+  $("#preset").innerHTML=PRESETS.map(p=>`<option value="${p.key}" ${p.key===st.preset?"selected":""}>${p.key==="custom"?"직접 입력":`${p.key} (${STYLE_KO[p.style]})`}</option>`).join("");
+  $("#preset").onchange=e=>{ st.preset=e.target.value; const p=PRESETS.find(x=>x.key===st.preset); if(p.style){ st.ratio={inf:p.inf,arc:p.arc,cav:p.cav}; $("#rInf").value=p.inf; $("#rArc").value=p.arc; $("#rCav").value=p.cav; } update(); };
+  for(const [k,el] of [["inf","#rInf"],["arc","#rArc"],["cav","#rCav"]]) $(el).oninput=e=>{st.ratio[k]=+e.target.value||0; st.preset="custom"; $("#preset").value="custom"; update();};
 }
 function renderLeaders(){
   $("#leaders").innerHTML=["inf","arc","cav"].map(t=>{ const opts=HEROES.filter(h=>h.type===t&&h.gen<=st.gen);
@@ -389,6 +410,7 @@ function renderJoinerResult(){ const base=leaderEffects().effs; const baseS=scor
   document.querySelectorAll(".rec").forEach((r,i)=>r.classList.toggle("sel", JSON.stringify([...lastRecs[i]?.heroes||[]].sort())===JSON.stringify([...st.joiners].sort())));
 }
 function update(){
+  { const w=weights(); $("#styleInfo").innerHTML=`<span class="tag ${w.style==="attack"?"o":w.style==="defend"?"d":""}">${STYLE_KO[w.style]}</span> ${st.mode==="attack"?"공성":"수성"} → 추천 가중치: 공격 계열 <b style="font-family:var(--mono)">${w.wo.toFixed(1)}</b> · 방어 계열 <b style="font-family:var(--mono)">${w.wd.toFixed(1)}</b> <span class="dim">(${w.wd>w.wo?"방어력·체력·피해감소·적 피해감소 우선":w.wo>w.wd?"공격·파괴·피해증가·적 약화 우선":"공격·방어 균등"})</span>`; }
   const {effs,list}=leaderEffects(); const s=score(effs);
   $("#idTableL").innerHTML=idTable(s.ids);
   $("#skillListL").innerHTML=list.length?'<table>'+list.map(({h,s:sk,kind})=>`<tr><td>${h.ko}</td><td>${kind==="weapon"?'<span class="tag">전용</span>':""}${sk.ko||sk.name}${sk.chance?` <span class="tag">${sk.chance}%</span>`:sk.chancePerType?` <span class="tag">${(100*(1-Math.pow(1-sk.chancePerType/100,["inf","arc","cav"].filter(t=>st.ratio[t]>0).length))).toFixed(1)}%</span>`:""}${sk.scope&&sk.scope!=="all"?` <span class="tag">${[].concat(sk.scope).map(t=>TYPES[t]).join("·")}</span>`:""}</td><td class="n">${skillEffects(sk).map(e=>`${OPS[e.op]} ${e.val>=0?"+":""}${e.val.toFixed(1)}%`).join("<br>")}</td></tr>`).join("")+'</table>':'<div class="dim">집결장을 선택하세요.</div>';
