@@ -352,12 +352,12 @@ function skillEffects(skill){ // → [{op,val}]
   const p = chance && st.prob==="ev" ? chance/100 : 1;
   return skill.effects.map(e=>({op:e.op, val:e.val*p*scopeShare(e.scope||skill.scope), uid: skill.unique ? skill.name : null}));
 }
-function sumIds(effs){ const m={}, seen=new Set(); effs.forEach(e=>{ if(e.uid){ if(seen.has(e.uid)) return; seen.add(e.uid); } m[e.op]=(m[e.op]||0)+e.val;}); return m; }
-function mult(ids, keys){ return keys.reduce((a,k)=>a*(1+(ids[k]||0)/100),1); }
+function sumIds(effs){ const m={}, seen=new Set(); effs.forEach(e=>{ if(e.uid){ if(seen.has(e.uid)) return; seen.add(e.uid); } const k=e.w?"w"+e.op:e.op; m[k]=(m[k]||0)+e.val;}); return m; }
+function mult(ids, keys){ return keys.reduce((a,k)=>a*(1+(ids[k]||0)/100)*(1+(ids["w"+k]||0)/100),1); }   // 전무 스킬은 같은 스탯이라도 별도 곱산
 function leaderEffects(){ const out=[]; const list=[];
   for(const t of ["inf","arc","cav"]){ const h=byId[st.leaders[t]]; if(!h) continue;
     h.skills.forEach(s=>{ out.push(...skillEffects(s)); list.push({h,s,kind:"skill"}); });
-    if(st.weapon[t] && h.weapon && (h.weapon.mode==="all"||h.weapon.mode===st.mode)){ out.push(...skillEffects(h.weapon)); list.push({h,s:h.weapon,kind:"weapon"}); }
+    if(st.weapon[t] && h.weapon && (h.weapon.mode==="all"||h.weapon.mode===st.mode)){ out.push(...skillEffects(h.weapon).map(e=>({...e,w:true}))); list.push({h,s:h.weapon,kind:"weapon"}); }
   }
   return {effs:out,list};
 }
@@ -378,11 +378,11 @@ function recommend(){
 const $=(s)=>document.querySelector(s);
 const pct=(v)=>v.toFixed(2)+"×";
 function heroLabel(h){ return `${h.ko} (${h.en})${h.status==="partial"?" ·일부":h.status==="todo"?" ·미입력":""}`; }
-function idTable(ids, baseIds){ const keys=[...OFF,...DEF].filter(k=>ids[k]||(baseIds&&baseIds[k]));
+function idTable(ids, baseIds){ const keys=[...OFF,...DEF].flatMap(k=>[k,"w"+k]).filter(k=>ids[k]||(baseIds&&baseIds[k]));
   if(!keys.length) return '<div class="dim">적용된 스킬이 없어요.</div>';
   const max=Math.max(...keys.map(k=>ids[k]||0),1);
-  return '<table><tr><th>항목</th><th class="n">합계</th></tr>'+keys.map(k=>{const v=ids[k]||0;const add=baseIds?v-(baseIds[k]||0):0;const isO=OFF.includes(k);
-    return `<tr><td><span class="tag ${isO?"o":"d"}">${isO?"공격":"방어"}</span> ${OPS[k]}<div class="bar ${isO?"":"d"}"><i style="width:${v/max*100}%"></i></div></td><td class="n">${v.toFixed(1)}%${add>0.05?`<div class="dim" style="font-size:11px">+${add.toFixed(1)}</div>`:""}</td></tr>`;}).join("")+'</table>'; }
+  return '<table><tr><th>항목</th><th class="n">합계</th></tr>'+keys.map(k=>{const v=ids[k]||0;const add=baseIds?v-(baseIds[k]||0):0;const op=+String(k).replace("w",""); const isO=OFF.includes(op); const isW=String(k).startsWith("w");
+    return `<tr><td><span class="tag ${isO?"o":"d"}">${isO?"공격":"방어"}</span> ${OPS[op]}${isW?' <span class="tag">전무 · 곱산</span>':""}<div class="bar ${isO?"":"d"}"><i style="width:${v/max*100}%"></i></div></td><td class="n">${v.toFixed(1)}%${add>0.05?`<div class="dim" style="font-size:11px">+${add.toFixed(1)}</div>`:""}</td></tr>`;}).join("")+'</table>'; }
 
 function renderSetup(){
   $("#gen").innerHTML=[1,2,3,4,5,6,7,8].map(g=>`<option value="${g}" ${g===st.gen?"selected":""}>${g}세대까지</option>`).join("");
